@@ -16,9 +16,13 @@ def main():
     parser = argparse.ArgumentParser(description="Stop Claude Code ECS tasks")
     parser.add_argument("--task-arn", help="Specific task ARN to stop")
     parser.add_argument("--all", action="store_true", help="Stop all running tasks")
-    parser.add_argument("--cluster", default="claude-code-agent-cluster", help="ECS cluster")
+    parser.add_argument(
+        "--cluster", default="claude-code-agent-cluster", help="ECS cluster"
+    )
     parser.add_argument("--region", default="eu-west-2", help="AWS region")
-    parser.add_argument("--reason", default="Manual kill switch activated", help="Stop reason")
+    parser.add_argument(
+        "--reason", default="Manual kill switch activated", help="Stop reason"
+    )
 
     args = parser.parse_args()
 

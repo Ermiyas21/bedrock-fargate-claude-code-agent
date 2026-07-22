@@ -82,12 +82,15 @@ def handler(event, context):
 
         logger.info("Started ECS task %s for ticket %s", task_arn, task_id)
 
-        return _response(200, {
-            "message": "Task started",
-            "task_id": task_id,
-            "task_arn": task_arn,
-            "ticket_location": ticket_location,
-        })
+        return _response(
+            200,
+            {
+                "message": "Task started",
+                "task_id": task_id,
+                "task_arn": task_arn,
+                "ticket_location": ticket_location,
+            },
+        )
 
     except KeyError as e:
         logger.error("Missing required field: %s", e)

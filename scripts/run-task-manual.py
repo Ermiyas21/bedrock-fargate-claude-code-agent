@@ -21,19 +21,31 @@ import boto3
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Start a Claude Code ECS task manually")
+    parser = argparse.ArgumentParser(
+        description="Start a Claude Code ECS task manually"
+    )
     parser.add_argument("--repo", required=True, help="Repository URL (https)")
     parser.add_argument("--task-id", required=True, help="Task/ticket identifier")
     parser.add_argument("--ticket-body", help="Ticket description as text")
     parser.add_argument("--ticket-file", help="Path to ticket JSON file")
-    parser.add_argument("--base-branch", default="main", help="Base branch (default: main)")
-    parser.add_argument("--model", default="eu.anthropic.claude-sonnet-4-6", help="Claude model ID")
+    parser.add_argument(
+        "--base-branch", default="main", help="Base branch (default: main)"
+    )
+    parser.add_argument(
+        "--model", default="eu.anthropic.claude-sonnet-4-6", help="Claude model ID"
+    )
     parser.add_argument("--test-command", default="npm test", help="Test command")
     parser.add_argument("--region", default="eu-west-2", help="AWS region")
-    parser.add_argument("--cluster", default="claude-code-agent-cluster", help="ECS cluster name")
-    parser.add_argument("--task-def", default="claude-code-agent-task", help="Task definition family")
+    parser.add_argument(
+        "--cluster", default="claude-code-agent-cluster", help="ECS cluster name"
+    )
+    parser.add_argument(
+        "--task-def", default="claude-code-agent-task", help="Task definition family"
+    )
     parser.add_argument("--subnets", required=True, help="Comma-separated subnet IDs")
-    parser.add_argument("--security-groups", required=True, help="Comma-separated security group IDs")
+    parser.add_argument(
+        "--security-groups", required=True, help="Comma-separated security group IDs"
+    )
     parser.add_argument("--wait", action="store_true", help="Wait for task to complete")
 
     args = parser.parse_args()
@@ -94,7 +106,10 @@ def main():
                         {"name": "BASE_BRANCH", "value": args.base_branch},
                         {"name": "CLAUDE_MODEL_ID", "value": args.model},
                         {"name": "TEST_COMMAND", "value": args.test_command},
-                        {"name": "TICKET_LOCATION", "value": f"s3://{bucket}/{ticket_key}"},
+                        {
+                            "name": "TICKET_LOCATION",
+                            "value": f"s3://{bucket}/{ticket_key}",
+                        },
                     ],
                 }
             ]
@@ -143,14 +158,20 @@ def main():
 
         # Print log stream info
         print("\n  View logs:")
-        print(f"  aws logs tail /ecs/claude-code-agent --follow --filter-pattern '{task_id}'")
+        print(
+            f"  aws logs tail /ecs/claude-code-agent --follow --filter-pattern '{task_id}'"
+        )
 
         sys.exit(0 if exit_code == 0 else 1)
     else:
         print("\nTask running in background.")
-        print(f"  Monitor: aws ecs describe-tasks --cluster {args.cluster} --tasks {task_arn}")
+        print(
+            f"  Monitor: aws ecs describe-tasks --cluster {args.cluster} --tasks {task_arn}"
+        )
         print("  Logs:    aws logs tail /ecs/claude-code-agent --follow")
-        print(f"  Stop:    aws ecs stop-task --cluster {args.cluster} --task {task_arn}")
+        print(
+            f"  Stop:    aws ecs stop-task --cluster {args.cluster} --task {task_arn}"
+        )
 
 
 if __name__ == "__main__":

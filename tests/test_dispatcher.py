@@ -14,6 +14,7 @@ import pytest
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _set_env(monkeypatch):
     """Set required environment variables before importing the handler."""
@@ -31,6 +32,7 @@ def _reload_handler():
     """Force-reload the handler module so env vars are picked up."""
     import importlib
     import scripts.dispatcher.handler as mod
+
     importlib.reload(mod)
     return mod
 
@@ -69,6 +71,7 @@ def _linear_payload(
 # _parse_body
 # ---------------------------------------------------------------------------
 
+
 class TestParseBody:
     def test_parses_json_string(self, _reload_handler):
         handler_mod = _reload_handler
@@ -89,6 +92,7 @@ class TestParseBody:
 # ---------------------------------------------------------------------------
 # _should_process
 # ---------------------------------------------------------------------------
+
 
 class TestShouldProcess:
     def test_qualifies_ready_for_dev(self, _reload_handler):
@@ -120,6 +124,7 @@ class TestShouldProcess:
 # _extract_ticket
 # ---------------------------------------------------------------------------
 
+
 class TestExtractTicket:
     def test_extracts_fields(self, _reload_handler):
         body = _linear_payload(
@@ -149,6 +154,7 @@ class TestExtractTicket:
 # _response
 # ---------------------------------------------------------------------------
 
+
 class TestResponse:
     def test_builds_api_gateway_response(self, _reload_handler):
         resp = _reload_handler._response(200, {"msg": "ok"})
@@ -161,6 +167,7 @@ class TestResponse:
 # _validate_webhook
 # ---------------------------------------------------------------------------
 
+
 class TestValidateWebhook:
     def test_valid_signature(self, _reload_handler):
         import hmac
@@ -168,9 +175,7 @@ class TestValidateWebhook:
 
         secret = "test-secret"
         body = '{"action":"update"}'
-        sig = hmac.new(
-            secret.encode(), body.encode(), hashlib.sha256
-        ).hexdigest()
+        sig = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
 
         event = {"headers": {"x-linear-signature": sig}, "body": body}
         assert _reload_handler._validate_webhook(event, secret) is True
@@ -183,6 +188,7 @@ class TestValidateWebhook:
 # ---------------------------------------------------------------------------
 # handler (integration-level, AWS calls mocked)
 # ---------------------------------------------------------------------------
+
 
 class TestHandler:
     @patch("scripts.dispatcher.handler.ecs_client")
@@ -230,7 +236,9 @@ class TestHandler:
 
     @patch("scripts.dispatcher.handler.ecs_client")
     @patch("scripts.dispatcher.handler.s3_client")
-    def test_invalid_webhook_returns_401(self, mock_s3, mock_ecs, _reload_handler, monkeypatch):
+    def test_invalid_webhook_returns_401(
+        self, mock_s3, mock_ecs, _reload_handler, monkeypatch
+    ):
         monkeypatch.setattr(_reload_handler, "WEBHOOK_SECRET", "my-secret")
         event = _apigw_event(_linear_payload())
         event["headers"] = {"x-linear-signature": "wrong"}
