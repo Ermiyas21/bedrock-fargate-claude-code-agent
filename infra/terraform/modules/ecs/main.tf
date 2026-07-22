@@ -97,12 +97,20 @@ resource "aws_ecs_task_definition" "agent" {
         { name = "MAX_TURNS", value = tostring(var.max_turns) },
       ]
 
-      secrets = [
-        {
-          name      = "GITHUB_TOKEN_SECRET_ID"
-          valueFrom = var.github_token_secret_arn
-        }
-      ]
+      secrets = concat(
+        [
+          {
+            name      = "GITHUB_TOKEN_SECRET_ID"
+            valueFrom = var.github_token_secret_arn
+          }
+        ],
+        var.jira_token_secret_arn != "" ? [
+          {
+            name      = "JIRA_TOKEN_SECRET_ID"
+            valueFrom = var.jira_token_secret_arn
+          }
+        ] : []
+      )
 
       logConfiguration = {
         logDriver = "awslogs"

@@ -54,6 +54,7 @@ module "ecs" {
   task_role_arn           = module.iam.ecs_task_role_arn
   ecr_repository_url      = module.ecr.repository_url
   github_token_secret_arn = module.secrets.github_token_arn
+  jira_token_secret_arn   = module.secrets.jira_token_arn
   claude_model_id         = var.claude_model_id
   default_repo_url        = var.default_repo_url
   default_base_branch     = var.default_base_branch

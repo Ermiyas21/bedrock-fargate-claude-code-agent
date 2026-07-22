@@ -32,3 +32,11 @@ cp terraform.tfvars.example terraform.tfvars
 export TF_VAR_github_token="ghp_..."
 terraform init && terraform apply
 ```
+
+
+
+# To deploy token, pass tokens securely 
+
+terraform apply \
+  -var="github_token=ghp_YOUR_NEW_TOKEN" \
+  -var="jira_token=YOUR_NEW_JIRA_TOKEN" 

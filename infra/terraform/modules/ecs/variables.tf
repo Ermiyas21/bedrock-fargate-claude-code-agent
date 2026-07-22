@@ -57,6 +57,12 @@ variable "github_token_secret_arn" {
   type        = string
 }
 
+variable "jira_token_secret_arn" {
+  description = "ARN of the Jira token secret (empty if not configured)"
+  type        = string
+  default     = ""
+}
+
 variable "claude_model_id" {
   description = "Bedrock model ID"
   type        = string
