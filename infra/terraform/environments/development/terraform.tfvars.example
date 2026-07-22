@@ -1,0 +1,30 @@
+# =============================================================================
+# Example terraform.tfvars — copy to terraform.tfvars and fill in your values
+# =============================================================================
+
+aws_region     = "eu-west-2"
+project_prefix = "claude-code-agent"
+
+# Secrets (use TF_VAR_github_token env var instead of hardcoding)
+# github_token = "github_pat_..."
+# jira_token   = ""
+
+# Networking — your VPC subnets and security groups
+subnet_ids         = ["subnet-09b828c44a8e1d39b", "subnet-0a81afeba14805ab2"]
+security_group_ids = ["sg-089d58d1e4921f650"]
+assign_public_ip   = true
+
+# ECS task sizing
+ecs_cpu    = 4096
+ecs_memory = 16384
+
+# Claude Code config
+claude_model_id      = "eu.anthropic.claude-sonnet-4-6"
+default_repo_url     = "https://github.com/Ermiyas2146/claude-code-repo.git"
+default_base_branch  = "main"
+default_test_command = "npm test"
+max_turns            = 50
+
+# Monitoring
+log_retention_days = 30
+alarm_email        = ""

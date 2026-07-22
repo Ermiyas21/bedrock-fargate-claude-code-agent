@@ -1,0 +1,174 @@
+name: Deploy — Build & Push to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_docker:
+        description: "Build and push Docker image to ECR"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+      deploy_lambda:
+        description: "Deploy Lambda function"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+      deploy_terraform:
+        description: "Run Terraform apply"
+        required: false
+        default: "false"
+        type: choice
+        options: ["true", "false"]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY: claude-code-agent
+
+jobs:
+  # -------------------------------------------------------------------
+  # Gate: run tests before any deployment
+  # -------------------------------------------------------------------
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -r scripts/dispatcher/requirements.txt
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  # -------------------------------------------------------------------
+  # Build Docker image and push to ECR
+  # -------------------------------------------------------------------
+  docker:
+    name: Build & Push Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docker == 'true')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            docker/
+
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # -------------------------------------------------------------------
+  # Package and deploy Lambda function
+  # -------------------------------------------------------------------
+  lambda:
+    name: Deploy Lambda
+    needs: test
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_lambda == 'true')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package Lambda
+        run: |
+          cd scripts/dispatcher
+          zip -r ../../lambda-package.zip . -x "__pycache__/*" "*.pyc"
+
+      - name: Deploy Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name claude-code-agent-dispatcher \
+            --zip-file fileb://lambda-package.zip \
+            --region $AWS_REGION
+
+  # -------------------------------------------------------------------
+  # Terraform apply (manual trigger only by default)
+  # -------------------------------------------------------------------
+  terraform:
+    name: Terraform Apply
+    needs: test
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_terraform == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+
+      - name: Terraform Init
+        working-directory: infra/terraform/environments/development
+        run: terraform init
+
+      - name: Write tfvars
+        working-directory: infra/terraform/environments/development
+        env:
+          TF_VARS_CONTENT: ${{ secrets.TF_VARS_DEVELOPMENT }}
+        run: echo "$TF_VARS_CONTENT" > terraform.tfvars
+
+      - name: Terraform Plan
+        working-directory: infra/terraform/environments/development
+        env:
+          TF_VAR_github_token: ${{ secrets.GH_PAT_FOR_AGENT }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infra/terraform/environments/development
+        env:
+          TF_VAR_github_token: ${{ secrets.GH_PAT_FOR_AGENT }}
+        run: terraform apply -auto-approve tfplan

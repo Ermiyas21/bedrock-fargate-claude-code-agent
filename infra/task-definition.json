@@ -1,0 +1,78 @@
+{
+    "family": "claude-code-agent-task",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "4096",
+    "memory": "16384",
+    "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/claude-code-agent-ecs-execution-role",
+    "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/claude-code-agent-ecs-task-role",
+    "containerDefinitions": [
+        {
+            "name": "claude-code-agent",
+            "image": "ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com/claude-code-agent:latest",
+            "essential": true,
+            "environment": [
+                {
+                    "name": "CLAUDE_CODE_USE_BEDROCK",
+                    "value": "1"
+                },
+                {
+                    "name": "CLAUDE_MODEL_ID",
+                    "value": "eu.anthropic.claude-sonnet-4-6"
+                },
+                {
+                    "name": "AWS_REGION",
+                    "value": "eu-west-2"
+                },
+                {
+                    "name": "REPO_URL",
+                    "value": "https://github.com/org/repo.git"
+                },
+                {
+                    "name": "BASE_BRANCH",
+                    "value": "main"
+                },
+                {
+                    "name": "TEST_COMMAND",
+                    "value": "npm test"
+                },
+                {
+                    "name": "MAX_TURNS",
+                    "value": "50"
+                }
+            ],
+            "secrets": [
+                {
+                    "name": "GITHUB_TOKEN_SECRET_ID",
+                    "valueFrom": "arn:aws:secretsmanager:eu-west-2:ACCOUNT_ID:secret:claude-code-agent/github-token"
+                },
+                {
+                    "name": "JIRA_TOKEN_SECRET_ID",
+                    "valueFrom": "arn:aws:secretsmanager:eu-west-2:ACCOUNT_ID:secret:claude-code-agent/jira-token"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/claude-code-agent",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "agent"
+                }
+            },
+            "stopTimeout": 30,
+            "healthCheck": {
+                "command": ["CMD-SHELL", "/app/scripts/healthcheck.sh || exit 1"],
+                "interval": 60,
+                "timeout": 10,
+                "retries": 3,
+                "startPeriod": 30
+            }
+        }
+    ],
+    "tags": [
+        {
+            "key": "Project",
+            "value": "claude-code-agent"
+        }
+    ]
+}
