@@ -27,28 +27,7 @@ Claude Code CLI runs inside a Docker container on ECS Fargate in **headless mode
 
 **Bedrock API:** Uses `bedrock:InvokeModel` / `InvokeModelWithResponseStream` via the ECS task's IAM role. No API key needed — the env var `CLAUDE_CODE_USE_BEDROCK=1` routes all inference through Amazon Bedrock in `eu-west-2`.
 
----
 
-## Architecture
-
-```
-Linear Webhook → API Gateway → Lambda Dispatcher → ECS Fargate Task
-                                                         │
-                                                         ├── Clone repo
-                                                         ├── Read ticket (S3)
-                                                         ├── Claude Code (Bedrock)
-                                                         │     ├── Inspect codebase
-                                                         │     ├── Implement changes
-                                                         │     ├── Create tests
-                                                         │     └── Fix lint issues
-                                                         ├── Run test suite
-                                                         ├── Commit & push branch
-                                                         └── Create Pull Request
-```
-
-**AWS Services:** Bedrock, ECS Fargate, ECR, Lambda, API Gateway, S3, Secrets Manager, IAM, CloudWatch
-
----
 
 ## Project Structure
 
@@ -164,74 +143,7 @@ docker push YOUR_ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com/claude-code-agent:la
 
 ---
 
-## Testing the Full Pipeline
 
-### Test 1: Manual Task (end-to-end without webhook)
-
-```bash
-pip install boto3
-
-python scripts/run-task-manual.py \
-    --repo https://github.com/YOUR_ORG/YOUR_REPO.git \
-    --task-id TEST-001 \
-    --ticket-body "Add a health check endpoint that returns HTTP 200 at /health" \
-    --subnets "subnet-09b828c44a8e1d39b,subnet-0a81afeba14805ab2" \
-    --security-groups "sg-089d58d1e4921f650" \
-    --wait
-```
-
-This uploads a ticket to S3, starts an ECS task, and waits for completion. Check the output for:
-- Exit Code **0** = success (PR created)
-- Exit Code **1** = script error (check logs)
-
-### Test 2: Lambda Invocation (simulate webhook)
-
-```bash
-# Get your webhook URL
-WEBHOOK_URL=$(cd infra/terraform/environments/development && terraform output -raw webhook_url)
-
-# Send a fake Linear webhook payload
-curl -X POST "$WEBHOOK_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "update",
-    "type": "Issue",
-    "data": {
-      "id": "test-1",
-      "identifier": "TEST-002",
-      "title": "Add health check endpoint",
-      "description": "Add a /health endpoint that returns HTTP 200 with JSON body {\"status\": \"ok\"}",
-      "state": {"name": "Ready for Dev"}
-    }
-  }'
-```
-
-Expected response: `{"statusCode": 200, "body": "Task started"}`
-
-### Test 3: View Logs (real-time)
-
-```bash
-# Follow all ECS task logs
-aws logs tail /ecs/claude-code-agent --follow --region eu-west-2
-
-# Filter by specific task ID
-aws logs filter-log-events \
-  --log-group-name /ecs/claude-code-agent \
-  --filter-pattern "TEST-001" \
-  --region eu-west-2
-```
-
-### Test 4: Stop a Runaway Task
-
-```bash
-# Stop specific task
-python scripts/stop-task.py --task-arn arn:aws:ecs:eu-west-2:ACCOUNT:task/claude-code-agent-cluster/TASK_ID
-
-# Emergency: kill all running tasks
-python scripts/stop-task.py --all
-```
-
----
 
 ## Environment Variables (ECS Task)
 
@@ -277,19 +189,6 @@ See `infra/terraform/environments/development/terraform.tfvars.example` for all 
 
 Alarms notify via SNS topic `claude-code-agent-alerts`.
 
----
-
-## Cost Estimate
-
-| Component | Typical Cost (per run) |
-|-----------|----------------------|
-| Bedrock tokens (Sonnet, ~50k in + 15k out) | ~$0.35–0.50 |
-| ECS Fargate Spot (4 vCPU, 16 GB, 20 min) | ~$0.01–0.05 |
-| S3, Lambda, API Gateway | Negligible |
-| **Total per run** | **~$0.40–0.60** |
-| **Monthly (50 runs/week)** | **~$80–120** |
-
----
 
 ## Security
 
@@ -331,152 +230,8 @@ Two workflows automate testing and deployment:
 
 ---
 
-## Step-by-Step Deployment Guide
 
-Follow these steps **in order** to go from zero to a fully deployed pipeline.
 
-### Step 1 — Prerequisites
-
-```bash
-# Verify tools are installed
-terraform --version   # >= 1.5
-aws sts get-caller-identity   # AWS CLI configured
-docker --version
-python3 --version   # >= 3.10
-```
-
-### Step 2 — Clone the Repo
-
-```bash
-git clone https://github.com/YOUR_ORG/YOUR_REPO.git
-cd YOUR_REPO
-```
-
-### Step 3 — Run Tests Locally
-
-```bash
-pip install -r requirements-dev.txt
-pip install -r scripts/dispatcher/requirements.txt
-pytest tests/ -v
-```
-
-All tests should pass before proceeding.
-
-### Step 4 — Configure Terraform Variables
-
-```bash
-cd infra/terraform/environments/development
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your subnet_ids, security_group_ids, etc.
-```
-
-### Step 5 — Deploy Infrastructure (Terraform)
-
-```bash
-export TF_VAR_github_token="github_pat_YOUR_TOKEN_HERE"
-
-terraform init
-terraform plan        # Review the plan
-terraform apply       # Type 'yes' to confirm
-```
-
-This creates: IAM roles, ECR repo, S3 bucket, ECS cluster + task def, Lambda, API Gateway, CloudWatch alarms, SNS.
-
-### Step 6 — Build & Push Docker Image
-
-```bash
-# Get push commands from Terraform output
-terraform output -raw docker_push_commands
-
-# Or manually:
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws ecr get-login-password --region eu-west-2 \
-  | docker login --username AWS --password-stdin \
-    ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-2.amazonaws.com
-
-docker build --platform linux/amd64 -t claude-code-agent:latest docker/
-docker tag claude-code-agent:latest ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-2.amazonaws.com/claude-code-agent:latest
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-2.amazonaws.com/claude-code-agent:latest
-```
-
-### Step 7 — Configure Linear Webhook
-
-1. Go to **Linear → Settings → API → Webhooks**
-2. Add webhook URL: `terraform output -raw webhook_url`
-3. Set secret: `terraform output -raw webhook_secret`
-4. Subscribe to **Issue** events (state changes to "Ready for Dev")
-
-### Step 8 — Set Up GitHub Actions (CI/CD)
-
-**8a. Create an IAM OIDC provider for GitHub:**
-
-```bash
-# One-time setup — allows GitHub Actions to assume an IAM role
-aws iam create-open-id-connect-provider \
-  --url https://token.actions.githubusercontent.com \
-  --client-id-list sts.amazonaws.com \
-  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
-```
-
-**8b. Create the deploy IAM role** (trust GitHub OIDC):
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/YOUR_REPO:*"
-        }
-      }
-    }
-  ]
-}
-```
-
-Attach policies: `AmazonECR*`, `AWSLambda*`, and a custom policy for ECS/S3/Secrets if using Terraform apply from CI.
-
-**8c. Add GitHub Secrets:**
-
-In your repo → **Settings → Secrets and variables → Actions**:
-
-| Secret | Value |
-|--------|-------|
-| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::ACCOUNT_ID:role/github-deploy-role` |
-| `GH_PAT_FOR_AGENT` | GitHub PAT with `repo` scope |
-
-### Step 9 — Verify the Pipeline
-
-```bash
-# Push to main — CI runs tests, Deploy builds Docker + updates Lambda
-git add -A && git commit -m "chore: add CI/CD" && git push origin main
-```
-
-Check the **Actions** tab in GitHub to confirm both workflows pass.
-
-### Step 10 — Test End-to-End
-
-```bash
-# Manual task test (no webhook needed)
-python scripts/run-task-manual.py \
-    --repo https://github.com/YOUR_ORG/YOUR_REPO.git \
-    --task-id TEST-001 \
-    --ticket-body "Add a health check endpoint that returns HTTP 200 at /health" \
-    --subnets "subnet-xxx,subnet-yyy" \
-    --security-groups "sg-zzz" \
-    --wait
-```
-
----
 
 ## Next Plan
 
