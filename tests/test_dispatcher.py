@@ -18,6 +18,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _set_env(monkeypatch):
     """Set required environment variables before importing the handler."""
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
     monkeypatch.setenv("ECS_CLUSTER", "test-cluster")
     monkeypatch.setenv("ECS_TASK_DEFINITION", "test-task-def")
     monkeypatch.setenv("SUBNETS", "subnet-aaa,subnet-bbb")
