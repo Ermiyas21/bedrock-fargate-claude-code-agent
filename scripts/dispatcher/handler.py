@@ -8,7 +8,6 @@ validates the payload, and starts an ECS Fargate task to run Claude Code headles
 import json
 import os
 import logging
-import uuid
 from datetime import datetime
 
 import boto3
@@ -151,7 +150,7 @@ def _extract_ticket(body):
         "identifier": data["identifier"],
         "title": data.get("title", ""),
         "description": data.get("description", ""),
-        "labels": [l.get("name", "") for l in data.get("labels", [])],
+        "labels": [label.get("name", "") for label in data.get("labels", [])],
         "priority": data.get("priority", 0),
         "url": data.get("url", ""),
         "created_at": datetime.utcnow().isoformat(),

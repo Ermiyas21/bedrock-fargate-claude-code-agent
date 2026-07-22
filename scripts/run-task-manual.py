@@ -16,7 +16,6 @@ Usage:
 import argparse
 import json
 import sys
-import time
 
 import boto3
 
@@ -136,21 +135,21 @@ def main():
         status = task["lastStatus"]
         reason = task.get("stoppedReason", "")
 
-        print(f"\nTask completed:")
+        print("\nTask completed:")
         print(f"  Status: {status}")
         print(f"  Exit Code: {exit_code}")
         if reason:
             print(f"  Reason: {reason}")
 
         # Print log stream info
-        print(f"\n  View logs:")
+        print("\n  View logs:")
         print(f"  aws logs tail /ecs/claude-code-agent --follow --filter-pattern '{task_id}'")
 
         sys.exit(0 if exit_code == 0 else 1)
     else:
-        print(f"\nTask running in background.")
+        print("\nTask running in background.")
         print(f"  Monitor: aws ecs describe-tasks --cluster {args.cluster} --tasks {task_arn}")
-        print(f"  Logs:    aws logs tail /ecs/claude-code-agent --follow")
+        print("  Logs:    aws logs tail /ecs/claude-code-agent --follow")
         print(f"  Stop:    aws ecs stop-task --cluster {args.cluster} --task {task_arn}")
 
 

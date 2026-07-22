@@ -5,8 +5,7 @@ Run with: pytest tests/ -v
 """
 
 import json
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
