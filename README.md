@@ -1,5 +1,11 @@
 # Claude Code on AWS ECS Fargate
 
+![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-web-services&logoColor=white)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-191919?style=for-the-badge&logo=anthropic&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![AI Agent](https://img.shields.io/badge/AI%20Agent-6B4FBB?style=for-the-badge&logo=robot-framework&logoColor=white)
+
 Headless Claude Code running on ECS Fargate with Amazon Bedrock for inference.  
 Receives tickets from Linear via webhook, implements code changes, and creates PRs automatically.
 
