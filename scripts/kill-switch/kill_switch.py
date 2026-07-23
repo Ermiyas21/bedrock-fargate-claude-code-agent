@@ -6,9 +6,9 @@ when cost/token limits are exceeded.
 """
 
 import json
-import os
 import logging
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 
 import boto3
 
@@ -51,14 +51,14 @@ def handler(event, context):
         return {"action": "ok", "token_usage": token_usage}
 
     except Exception as e:
-        logger.error("Kill switch error: %s", e, exc_info=True)
+        logger.exception("Kill switch error: %s", e)
         _notify(f"Kill switch error: {e}")
         raise
 
 
 def _get_daily_token_usage():
     """Get today's total Bedrock token usage from CloudWatch metrics."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc)
     start = now - timedelta(hours=24)
 
     response = cloudwatch_client.get_metric_statistics(

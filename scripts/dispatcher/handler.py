@@ -6,9 +6,9 @@ validates the payload, and starts an ECS Fargate task to run Claude Code headles
 """
 
 import json
-import os
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 
 import boto3
 from botocore.exceptions import ClientError
@@ -49,9 +49,8 @@ def handler(event, context):
         logger.info("Detected webhook source: %s", source)
 
         # Validate webhook (optional signature verification)
-        if WEBHOOK_SECRET:
-            if not _validate_webhook(event, WEBHOOK_SECRET, source):
-                return _response(401, {"error": "Invalid webhook signature"})
+        if WEBHOOK_SECRET and not _validate_webhook(event, WEBHOOK_SECRET, source):
+            return _response(401, {"error": "Invalid webhook signature"})
 
         # Check if this is a ticket transition to "Ready for Dev"
         if not _should_process(body, source):
@@ -97,7 +96,7 @@ def handler(event, context):
         logger.error("AWS error: %s", e)
         return _response(500, {"error": f"AWS error: {e.response['Error']['Message']}"})
     except Exception as e:
-        logger.error("Unexpected error: %s", e, exc_info=True)
+        logger.exception("Unexpected error: %s", e)
         return _response(500, {"error": "Internal server error"})
 
 
@@ -130,8 +129,8 @@ def _detect_source(body, event):
 
 def _validate_webhook(event, secret, source="linear"):
     """Validate webhook signature."""
-    import hmac
     import hashlib
+    import hmac
 
     body = event.get("body", "")
     if isinstance(body, dict):
@@ -141,9 +140,7 @@ def _validate_webhook(event, secret, source="linear"):
 
     if source == "jira":
         # Jira uses x-hub-signature header (HMAC-SHA256)
-        signature = headers.get("x-hub-signature", "")
-        if signature.startswith("sha256="):
-            signature = signature[7:]
+        signature = headers.get("x-hub-signature", "").removeprefix("sha256=")
         expected = hmac.new(
             secret.encode("utf-8"),
             body.encode("utf-8"),
@@ -221,7 +218,7 @@ def _extract_linear_ticket(body):
         "labels": [label.get("name", "") for label in data.get("labels", [])],
         "priority": data.get("priority", 0),
         "url": data.get("url", ""),
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 
 
@@ -239,7 +236,7 @@ def _extract_jira_ticket(body):
         "url": f"{issue.get('self', '').split('/rest/')[0]}/browse/{issue['key']}"
         if issue.get("self")
         else "",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 
 

@@ -32,6 +32,7 @@ def _set_env(monkeypatch):
 def _reload_handler():
     """Force-reload the handler module so env vars are picked up."""
     import importlib
+
     import scripts.dispatcher.handler as mod
 
     importlib.reload(mod)
@@ -224,8 +225,8 @@ class TestResponse:
 
 class TestValidateWebhook:
     def test_valid_linear_signature(self, _reload_handler):
-        import hmac
         import hashlib
+        import hmac
 
         secret = "test-secret"
         body = '{"action":"update"}'
@@ -239,8 +240,8 @@ class TestValidateWebhook:
         assert _reload_handler._validate_webhook(event, "secret", "linear") is False
 
     def test_valid_jira_signature(self, _reload_handler):
-        import hmac
         import hashlib
+        import hmac
 
         secret = "test-secret"
         body = '{"webhookEvent":"jira:issue_updated"}'
