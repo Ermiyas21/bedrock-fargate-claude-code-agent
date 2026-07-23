@@ -1,0 +1,16 @@
+{
+  "source": "jira",
+  "identifier": "RECO-101",
+  "title": "Build product recommendation system for e-commerce platform",
+  "description": "## Summary\nImplement a product recommendation system that suggests relevant products to users based on their browsing history, purchase behavior, and product similarity.\n\n## Background\nOur e-commerce platform currently shows products in a static order. We want to increase conversion and average order value by showing personalized product recommendations on the product detail page, cart page, and home page.\n\n## Requirements\n\n### 1. Recommendation Types\n- **\"Customers also bought\"** — collaborative filtering based on co-purchase history.\n- **\"Similar products\"** — content-based filtering using product attributes (category, brand, price range, tags).\n- **\"Recommended for you\"** — personalized recommendations based on the logged-in user's history.\n- **\"Trending now\"** — popularity-based fallback for new/anonymous users (cold start).\n\n### 2. API\n- Expose a REST endpoint: `GET /api/v1/recommendations`.\n- Query params: `user_id` (optional), `product_id` (optional), `type` (one of: also_bought, similar, for_you, trending), `limit` (default 10, max 50).\n- Response: JSON array of product objects with `product_id`, `score`, and `reason`.\n- Endpoint must respond in under 200ms (p95).\n\n### 3. Data Model\n- Store user-product interaction events (view, add_to_cart, purchase) with timestamps.\n- Maintain a product similarity matrix, refreshed on a schedule (e.g. nightly batch job).\n- Support incremental updates as new interactions arrive.\n\n### 4. Cold Start Handling\n- New users with no history should receive trending/popular products.\n- New products with no interactions should be recommended via content-based similarity.\n\n### 5. Configuration\n- Recommendation weights (collaborative vs content-based) must be configurable.\n- Minimum score threshold to filter low-quality recommendations.\n\n## Acceptance Criteria\n- [ ] All four recommendation types return relevant results.\n- [ ] API endpoint is documented (OpenAPI/Swagger).\n- [ ] Cold start returns trending products for new users.\n- [ ] Recommendations exclude out-of-stock and already-purchased items.\n- [ ] Unit and integration tests cover each recommendation type with >80% coverage.\n- [ ] p95 latency is under 200ms under load.\n- [ ] Configurable weights are validated and documented.\n\n## Technical Notes\n- Follow existing repository coding standards and project structure.\n- Reuse existing database connection/ORM layer.\n- Add appropriate database indexes for interaction queries.\n- Include a seed/fixture script with sample interaction data for local testing.\n\n## Out of Scope\n- Real-time streaming recommendations (batch refresh is acceptable for v1).\n- A/B testing framework (tracked separately).\n- Frontend UI implementation (this ticket covers the backend service and API only).",
+  "labels": [
+    "backend",
+    "recommendation-engine",
+    "machine-learning",
+    "api",
+    "e-commerce"
+  ],
+  "priority": "2",
+  "url": "https://your-domain.atlassian.net/browse/RECO-101",
+  "created_at": "2026-07-23T00:00:00+00:00"
+}

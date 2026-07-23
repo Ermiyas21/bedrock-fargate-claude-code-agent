@@ -355,7 +355,19 @@ docker push 260073348880.dkr.ecr.eu-central-1.amazonaws.com/claude-code-agent:la
 
 
 
+## upload the jira ticket into S3 bucket 
+- /Volumes/data/project/bedrock-fargate-claude-code-agent/data  
+- aws s3 cp data/RECO-101.json s3://claude-code-agent-tickets-260073348880/tickets/RECO-101.json --region eu-central-1 
 
+- Then trigger the agent manually with it : 
+ 
+ python scripts/run-task-manual.py \
+  --repo https://github.com/Ermiyas2146/claude-code-repo.git \
+  --task-id RECO-101 \
+  --ticket-file data/RECO-101.json \
+  --subnets "subnet-0417c686623f80fa6" \
+  --security-groups "sg-0d7c10ef18b64cadb" \
+  --wait 
 
 
 ## Next Plan
