@@ -107,6 +107,10 @@ resource "aws_iam_role" "kill_switch" {
   tags = var.tags
 }
 
+
+
+
+
 resource "aws_iam_role_policy_attachment" "kill_switch_basic" {
   role       = aws_iam_role.kill_switch.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
