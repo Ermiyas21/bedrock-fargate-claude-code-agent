@@ -16,7 +16,21 @@ variable "github_token" {
 }
 
 variable "jira_token" {
-  description = "Jira/Linear API token (optional)"
+  description = "Jira API token (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "linear_token" {
+  description = "Linear API token (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude Code (optional — fallback when not using Bedrock)"
   type        = string
   sensitive   = true
   default     = ""

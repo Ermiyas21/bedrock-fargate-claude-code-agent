@@ -1,6 +1,15 @@
 # =============================================================================
-# Lambda Dispatcher + API Gateway (HTTP API)
+# Lambda Dispatcher + API Gateway (HTTP API) + CloudWatch Logging
 # =============================================================================
+
+# -----------------------------------------------------
+# CloudWatch Log Group for Lambda
+# -----------------------------------------------------
+resource "aws_cloudwatch_log_group" "dispatcher" {
+  name              = "/aws/lambda/${var.prefix}-dispatcher"
+  retention_in_days = var.log_retention_days
+  tags              = var.tags
+}
 
 # -----------------------------------------------------
 # Lambda Function
@@ -33,7 +42,25 @@ resource "aws_lambda_function" "dispatcher" {
     }
   }
 
+  depends_on = [aws_cloudwatch_log_group.dispatcher]
+
   tags = var.tags
+}
+
+# -----------------------------------------------------
+# Lambda Error Metric Filter
+# -----------------------------------------------------
+resource "aws_cloudwatch_log_metric_filter" "dispatcher_errors" {
+  name           = "${var.prefix}-dispatcher-errors"
+  log_group_name = aws_cloudwatch_log_group.dispatcher.name
+  pattern        = "ERROR"
+
+  metric_transformation {
+    name          = "DispatcherErrorCount"
+    namespace     = "${var.prefix}/Lambda"
+    value         = "1"
+    default_value = "0"
+  }
 }
 
 # -----------------------------------------------------

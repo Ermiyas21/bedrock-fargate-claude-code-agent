@@ -43,3 +43,9 @@ variable "ticket_bucket_id" {
   description = "S3 ticket bucket ID"
   type        = string
 }
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 30
+}

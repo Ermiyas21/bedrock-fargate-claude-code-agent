@@ -4,7 +4,13 @@
 variable "aws_region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "eu-west-2"
+  default     = "eu-central-1"
+}
+
+variable "bedrock_region" {
+  description = "AWS region for Bedrock inference"
+  type        = string
+  default     = "eu-central-1"
 }
 
 variable "project_prefix" {
@@ -23,7 +29,21 @@ variable "github_token" {
 }
 
 variable "jira_token" {
-  description = "Jira/Linear API token (optional)"
+  description = "Jira API token (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "linear_token" {
+  description = "Linear API token (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude Code (optional — fallback when not using Bedrock)"
   type        = string
   sensitive   = true
   default     = ""
@@ -73,9 +93,9 @@ variable "task_timeout_seconds" {
 # Claude Code Configuration
 # -----------------------------------------------------
 variable "claude_model_id" {
-  description = "Bedrock model ID for Claude"
+  description = "Bedrock model ID for Claude (cross-region inference)"
   type        = string
-  default     = "eu.anthropic.claude-sonnet-4-6"
+  default     = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "default_repo_url" {
@@ -115,4 +135,19 @@ variable "alarm_email" {
   description = "Email for CloudWatch alarm notifications (optional)"
   type        = string
   default     = ""
+}
+
+# -----------------------------------------------------
+# Budget Kill Switch
+# -----------------------------------------------------
+variable "daily_token_limit" {
+  description = "Max daily Bedrock token usage before kill switch triggers"
+  type        = number
+  default     = 5000000
+}
+
+variable "daily_cost_limit" {
+  description = "Max daily Bedrock cost (USD) before kill switch triggers"
+  type        = number
+  default     = 50
 }

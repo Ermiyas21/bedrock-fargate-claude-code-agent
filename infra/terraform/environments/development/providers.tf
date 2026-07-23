@@ -16,7 +16,7 @@ terraform {
   # backend "s3" {
   #   bucket         = "your-terraform-state-bucket"
   #   key            = "claude-code-agent/development/terraform.tfstate"
-  #   region         = "eu-west-2"
+  #   region         = "eu-central-1"
   #   dynamodb_table = "terraform-locks"
   #   encrypt        = true
   # }

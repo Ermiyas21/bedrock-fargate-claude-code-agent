@@ -8,6 +8,12 @@ variable "aws_region" {
   type        = string
 }
 
+variable "bedrock_region" {
+  description = "AWS region for Bedrock inference"
+  type        = string
+  default     = "eu-central-1"
+}
+
 variable "account_id" {
   description = "AWS account ID"
   type        = string
@@ -63,10 +69,22 @@ variable "jira_token_secret_arn" {
   default     = ""
 }
 
-variable "claude_model_id" {
-  description = "Bedrock model ID"
+variable "linear_token_secret_arn" {
+  description = "ARN of the Linear token secret (empty if not configured)"
   type        = string
-  default     = "eu.anthropic.claude-sonnet-4-6"
+  default     = ""
+}
+
+variable "anthropic_api_key_secret_arn" {
+  description = "ARN of the Anthropic API key secret (empty if not configured)"
+  type        = string
+  default     = ""
+}
+
+variable "claude_model_id" {
+  description = "Bedrock model ID (cross-region inference)"
+  type        = string
+  default     = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "default_repo_url" {

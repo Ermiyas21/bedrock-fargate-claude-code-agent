@@ -90,7 +90,8 @@ resource "aws_ecs_task_definition" "agent" {
       environment = [
         { name = "CLAUDE_CODE_USE_BEDROCK", value = "1" },
         { name = "CLAUDE_MODEL_ID", value = var.claude_model_id },
-        { name = "AWS_REGION", value = var.aws_region },
+        { name = "AWS_REGION", value = var.bedrock_region },
+        { name = "AWS_DEFAULT_REGION", value = var.aws_region },
         { name = "REPO_URL", value = var.default_repo_url },
         { name = "BASE_BRANCH", value = var.default_base_branch },
         { name = "TEST_COMMAND", value = var.default_test_command },
@@ -100,7 +101,7 @@ resource "aws_ecs_task_definition" "agent" {
       secrets = concat(
         [
           {
-            name      = "GITHUB_TOKEN_SECRET_ID"
+            name      = "GIT_CREDENTIALS_SECRET_ID"
             valueFrom = var.github_token_secret_arn
           }
         ],
@@ -108,6 +109,18 @@ resource "aws_ecs_task_definition" "agent" {
           {
             name      = "JIRA_TOKEN_SECRET_ID"
             valueFrom = var.jira_token_secret_arn
+          }
+        ] : [],
+        var.linear_token_secret_arn != "" ? [
+          {
+            name      = "LINEAR_TOKEN_SECRET_ID"
+            valueFrom = var.linear_token_secret_arn
+          }
+        ] : [],
+        var.anthropic_api_key_secret_arn != "" ? [
+          {
+            name      = "ANTHROPIC_API_KEY"
+            valueFrom = var.anthropic_api_key_secret_arn
           }
         ] : []
       )

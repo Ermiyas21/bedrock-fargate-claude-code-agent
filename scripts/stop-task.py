@@ -2,7 +2,7 @@
 Kill switch — stop a running Claude Code ECS task.
 
 Usage:
-    python stop-task.py --task-arn arn:aws:ecs:eu-west-2:123:task/cluster/task-id
+    python stop-task.py --task-arn arn:aws:ecs:eu-central-1:123:task/cluster/task-id
     python stop-task.py --all  # Stop all running tasks in the cluster
 """
 
@@ -19,7 +19,7 @@ def main():
     parser.add_argument(
         "--cluster", default="claude-code-agent-cluster", help="ECS cluster"
     )
-    parser.add_argument("--region", default="eu-west-2", help="AWS region")
+    parser.add_argument("--region", default="eu-central-1", help="AWS region")
     parser.add_argument(
         "--reason", default="Manual kill switch activated", help="Stop reason"
     )

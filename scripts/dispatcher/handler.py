@@ -1,7 +1,7 @@
 """
 Lambda Dispatcher for Claude Code ECS Tasks.
 
-Receives webhook events from Linear (or any ticketing system) via API Gateway,
+Receives webhook events from Linear or Jira via API Gateway,
 validates the payload, and starts an ECS Fargate task to run Claude Code headless.
 """
 
@@ -34,18 +34,9 @@ def handler(event, context):
     """
     Lambda handler for API Gateway webhook events.
 
-    Expected payload from Linear webhook:
-    {
-        "action": "update",
-        "type": "Issue",
-        "data": {
-            "id": "issue-id",
-            "identifier": "TEAM-123",
-            "title": "Issue title",
-            "description": "Issue description",
-            "state": { "name": "Ready for Dev" }
-        }
-    }
+    Supports payloads from:
+    - Linear: { "action": "update", "type": "Issue", "data": { ... } }
+    - Jira: { "webhookEvent": "jira:issue_updated", "issue": { ... } }
     """
     logger.info("Received event: %s", json.dumps(event))
 
@@ -53,18 +44,22 @@ def handler(event, context):
         # Parse body from API Gateway
         body = _parse_body(event)
 
+        # Detect webhook source
+        source = _detect_source(body, event)
+        logger.info("Detected webhook source: %s", source)
+
         # Validate webhook (optional signature verification)
         if WEBHOOK_SECRET:
-            if not _validate_webhook(event, WEBHOOK_SECRET):
+            if not _validate_webhook(event, WEBHOOK_SECRET, source):
                 return _response(401, {"error": "Invalid webhook signature"})
 
         # Check if this is a ticket transition to "Ready for Dev"
-        if not _should_process(body):
+        if not _should_process(body, source):
             logger.info("Skipping event - not a qualifying state transition")
             return _response(200, {"message": "Skipped - not a qualifying event"})
 
         # Extract ticket data
-        ticket_data = _extract_ticket(body)
+        ticket_data = _extract_ticket(body, source)
         task_id = ticket_data["identifier"]
 
         # Upload ticket to S3
@@ -80,7 +75,7 @@ def handler(event, context):
         # Start ECS task
         task_arn = _start_ecs_task(task_id, ticket_location, ticket_data)
 
-        logger.info("Started ECS task %s for ticket %s", task_arn, task_id)
+        logger.info("Started ECS task %s for ticket %s (source: %s)", task_arn, task_id, source)
 
         return _response(
             200,
@@ -89,6 +84,7 @@ def handler(event, context):
                 "task_id": task_id,
                 "task_arn": task_arn,
                 "ticket_location": ticket_location,
+                "source": source,
             },
         )
 
@@ -111,34 +107,73 @@ def _parse_body(event):
     return body
 
 
-def _validate_webhook(event, secret):
-    """Validate webhook signature (Linear uses HMAC-SHA256)."""
+def _detect_source(body, event):
+    """Detect whether the webhook is from Linear or Jira."""
+    headers = event.get("headers", {})
+
+    # Linear sends x-linear-signature header
+    if headers.get("x-linear-signature") or headers.get("x-linear-delivery"):
+        return "linear"
+
+    # Jira payloads have webhookEvent field
+    if "webhookEvent" in body or "issue" in body:
+        return "jira"
+
+    # Linear payloads have action + type + data pattern
+    if "action" in body and "type" in body and "data" in body:
+        return "linear"
+
+    return "unknown"
+
+
+def _validate_webhook(event, secret, source="linear"):
+    """Validate webhook signature."""
     import hmac
     import hashlib
 
-    signature = event.get("headers", {}).get("x-linear-signature", "")
     body = event.get("body", "")
     if isinstance(body, dict):
         body = json.dumps(body)
 
+    headers = event.get("headers", {})
+
+    if source == "jira":
+        # Jira uses x-hub-signature header (HMAC-SHA256)
+        signature = headers.get("x-hub-signature", "")
+        if signature.startswith("sha256="):
+            signature = signature[7:]
+        expected = hmac.new(
+            secret.encode("utf-8"),
+            body.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(signature, expected)
+
+    # Linear uses x-linear-signature (HMAC-SHA256)
+    signature = headers.get("x-linear-signature", "")
     expected = hmac.new(
         secret.encode("utf-8"),
         body.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
-
     return hmac.compare_digest(signature, expected)
 
 
-def _should_process(body):
+def _should_process(body, source="linear"):
     """Check if the webhook event qualifies for processing."""
+    if source == "jira":
+        return _should_process_jira(body)
+    return _should_process_linear(body)
+
+
+def _should_process_linear(body):
+    """Check Linear webhook for qualifying state transition."""
     action = body.get("action", "")
     issue_type = body.get("type", "")
 
     if action != "update" or issue_type != "Issue":
         return False
 
-    # Check if state transitioned to "Ready for Dev"
     data = body.get("data", {})
     state = data.get("state", {})
     state_name = state.get("name", "")
@@ -146,16 +181,55 @@ def _should_process(body):
     return state_name.lower() in ("ready for dev", "ready for development", "ai ready")
 
 
-def _extract_ticket(body):
+def _should_process_jira(body):
+    """Check Jira webhook for qualifying state transition."""
+    webhook_event = body.get("webhookEvent", "")
+
+    if webhook_event not in ("jira:issue_updated", "jira:issue_created"):
+        return False
+
+    issue = body.get("issue", {})
+    fields = issue.get("fields", {})
+    status = fields.get("status", {})
+    status_name = status.get("name", "")
+
+    return status_name.lower() in ("ready for dev", "ready for development", "ai ready", "selected for development")
+
+
+def _extract_ticket(body, source="linear"):
     """Extract ticket information from the webhook payload."""
+    if source == "jira":
+        return _extract_jira_ticket(body)
+    return _extract_linear_ticket(body)
+
+
+def _extract_linear_ticket(body):
+    """Extract ticket from Linear webhook payload."""
     data = body["data"]
     return {
+        "source": "linear",
         "identifier": data["identifier"],
         "title": data.get("title", ""),
         "description": data.get("description", ""),
         "labels": [label.get("name", "") for label in data.get("labels", [])],
         "priority": data.get("priority", 0),
         "url": data.get("url", ""),
+        "created_at": datetime.utcnow().isoformat(),
+    }
+
+
+def _extract_jira_ticket(body):
+    """Extract ticket from Jira webhook payload."""
+    issue = body["issue"]
+    fields = issue.get("fields", {})
+    return {
+        "source": "jira",
+        "identifier": issue["key"],
+        "title": fields.get("summary", ""),
+        "description": fields.get("description", ""),
+        "labels": fields.get("labels", []),
+        "priority": fields.get("priority", {}).get("id", 0),
+        "url": f"{issue.get('self', '').split('/rest/')[0]}/browse/{issue['key']}" if issue.get("self") else "",
         "created_at": datetime.utcnow().isoformat(),
     }
 

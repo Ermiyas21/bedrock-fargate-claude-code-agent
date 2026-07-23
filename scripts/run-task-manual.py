@@ -32,10 +32,10 @@ def main():
         "--base-branch", default="main", help="Base branch (default: main)"
     )
     parser.add_argument(
-        "--model", default="eu.anthropic.claude-sonnet-4-6", help="Claude model ID"
+        "--model", default="us.anthropic.claude-sonnet-4-6", help="Claude model ID"
     )
     parser.add_argument("--test-command", default="npm test", help="Test command")
-    parser.add_argument("--region", default="eu-west-2", help="AWS region")
+    parser.add_argument("--region", default="eu-central-1", help="AWS region")
     parser.add_argument(
         "--cluster", default="claude-code-agent-cluster", help="ECS cluster name"
     )

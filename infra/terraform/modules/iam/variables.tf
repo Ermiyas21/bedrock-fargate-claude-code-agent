@@ -8,6 +8,12 @@ variable "aws_region" {
   type        = string
 }
 
+variable "bedrock_region" {
+  description = "AWS region for Bedrock inference"
+  type        = string
+  default     = "eu-central-1"
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)

@@ -14,18 +14,18 @@ echo "[1/8] Fetching secrets..."
 
 # GITHUB_TOKEN can come from:
 #   1. Direct env var (set by ECS secrets injection — value is already the token)
-#   2. GITHUB_TOKEN_SECRET_ID containing a Secrets Manager secret name
+#   2. GIT_CREDENTIALS_SECRET_ID containing a Secrets Manager secret name
 if [ -z "${GITHUB_TOKEN:-}" ]; then
-    if [ -n "${GITHUB_TOKEN_SECRET_ID:-}" ]; then
+    if [ -n "${GIT_CREDENTIALS_SECRET_ID:-}" ]; then
         # Check if the value looks like a Secrets Manager secret name (not a raw token)
-        if echo "$GITHUB_TOKEN_SECRET_ID" | grep -qE "^(github_pat_|ghp_|gho_|ghu_)"; then
+        if echo "$GIT_CREDENTIALS_SECRET_ID" | grep -qE "^(github_pat_|ghp_|gho_|ghu_)"; then
             # Value is already a raw token (injected by ECS secrets block)
-            export GITHUB_TOKEN="$GITHUB_TOKEN_SECRET_ID"
+            export GITHUB_TOKEN="$GIT_CREDENTIALS_SECRET_ID"
         else
             export GITHUB_TOKEN=$(aws secretsmanager get-secret-value \
-                --secret-id "$GITHUB_TOKEN_SECRET_ID" \
+                --secret-id "$GIT_CREDENTIALS_SECRET_ID" \
                 --query SecretString --output text \
-                --region "${AWS_REGION:-eu-west-2}")
+                --region "${AWS_DEFAULT_REGION:-eu-central-1}")
         fi
     fi
 fi
@@ -34,7 +34,22 @@ if [ -z "${JIRA_TOKEN:-}" ] && [ -n "${JIRA_TOKEN_SECRET_ID:-}" ]; then
     export JIRA_TOKEN=$(aws secretsmanager get-secret-value \
         --secret-id "$JIRA_TOKEN_SECRET_ID" \
         --query SecretString --output text \
-        --region "${AWS_REGION:-eu-west-2}") || true
+        --region "${AWS_DEFAULT_REGION:-eu-central-1}") || true
+fi
+
+# Linear API token (for updating issue status)
+if [ -z "${LINEAR_TOKEN:-}" ] && [ -n "${LINEAR_TOKEN_SECRET_ID:-}" ]; then
+    export LINEAR_TOKEN=$(aws secretsmanager get-secret-value \
+        --secret-id "$LINEAR_TOKEN_SECRET_ID" \
+        --query SecretString --output text \
+        --region "${AWS_DEFAULT_REGION:-eu-central-1}") || true
+fi
+
+# Anthropic API key (long-term Claude Code token — fallback when not using Bedrock)
+# When ANTHROPIC_API_KEY is set, Claude Code can use it directly.
+# If CLAUDE_CODE_USE_BEDROCK=1, Bedrock is used instead and this key is optional.
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "  Anthropic API key configured (Claude Code direct access available)"
 fi
 
 # Configure git credentials
@@ -68,7 +83,7 @@ git pull origin "$BASE_BRANCH"
 echo "[4/8] Downloading ticket..."
 
 if [ -n "${TICKET_LOCATION:-}" ]; then
-    aws s3 cp "$TICKET_LOCATION" /workspace/ticket.json --region "${AWS_REGION:-eu-west-2}"
+    aws s3 cp "$TICKET_LOCATION" /workspace/ticket.json --region "${AWS_DEFAULT_REGION:-eu-central-1}"
     TICKET_CONTENT=$(cat /workspace/ticket.json)
 elif [ -n "${TICKET_BODY:-}" ]; then
     TICKET_CONTENT="$TICKET_BODY"
@@ -117,7 +132,7 @@ Do NOT commit or push - just make the code changes."
 
 # Set Bedrock environment for Claude Code
 export CLAUDE_CODE_USE_BEDROCK="${CLAUDE_CODE_USE_BEDROCK:-1}"
-export ANTHROPIC_MODEL="${CLAUDE_MODEL_ID:-eu.anthropic.claude-sonnet-4-6}"
+export ANTHROPIC_MODEL="${CLAUDE_MODEL_ID:-us.anthropic.claude-sonnet-4-6}"
 
 claude -p "$CLAUDE_PROMPT" \
     --max-turns "${MAX_TURNS:-50}" \
@@ -175,7 +190,7 @@ git commit -m "feat: AI implementation for ${TASK_ID}
 
 Implemented by Claude Code (headless).
 Task: ${TASK_ID}
-Model: ${CLAUDE_MODEL_ID:-eu.anthropic.claude-sonnet-4-6}"
+Model: ${CLAUDE_MODEL_ID:-us.anthropic.claude-sonnet-4-6}"
 
 git push origin "$BRANCH_NAME"
 
@@ -186,7 +201,7 @@ PR_TITLE="${PR_TITLE:-feat: AI implementation ${TASK_ID}}"
 PR_BODY="## AI-Generated Implementation
 
 **Task ID:** ${TASK_ID}
-**Model:** ${CLAUDE_MODEL_ID:-eu.anthropic.claude-sonnet-4-6}
+**Model:** ${CLAUDE_MODEL_ID:-us.anthropic.claude-sonnet-4-6}
 **Branch:** ${BRANCH_NAME}
 
 ### Summary

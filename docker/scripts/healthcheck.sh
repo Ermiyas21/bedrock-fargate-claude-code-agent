@@ -8,4 +8,4 @@ gh --version > /dev/null 2>&1
 aws --version > /dev/null 2>&1
 claude --version > /dev/null 2>&1
 
-echo "All tools available."
+echo "All tools available." 

@@ -9,7 +9,7 @@
     "containerDefinitions": [
         {
             "name": "claude-code-agent",
-            "image": "ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com/claude-code-agent:latest",
+            "image": "ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com/claude-code-agent:latest",
             "essential": true,
             "environment": [
                 {
@@ -18,11 +18,15 @@
                 },
                 {
                     "name": "CLAUDE_MODEL_ID",
-                    "value": "eu.anthropic.claude-sonnet-4-6"
+                    "value": "us.anthropic.claude-sonnet-4-6"
                 },
                 {
                     "name": "AWS_REGION",
-                    "value": "eu-west-2"
+                    "value": "eu-central-1"
+                },
+                {
+                    "name": "AWS_DEFAULT_REGION",
+                    "value": "eu-central-1"
                 },
                 {
                     "name": "REPO_URL",
@@ -43,19 +47,27 @@
             ],
             "secrets": [
                 {
-                    "name": "GITHUB_TOKEN_SECRET_ID",
-                    "valueFrom": "arn:aws:secretsmanager:eu-west-2:ACCOUNT_ID:secret:claude-code-agent/github-token"
+                    "name": "GIT_CREDENTIALS_SECRET_ID",
+                    "valueFrom": "arn:aws:secretsmanager:eu-central-1:ACCOUNT_ID:secret:claude-code-agent/github-token"
                 },
                 {
                     "name": "JIRA_TOKEN_SECRET_ID",
-                    "valueFrom": "arn:aws:secretsmanager:eu-west-2:ACCOUNT_ID:secret:claude-code-agent/jira-token"
+                    "valueFrom": "arn:aws:secretsmanager:eu-central-1:ACCOUNT_ID:secret:claude-code-agent/jira-token"
+                },
+                {
+                    "name": "LINEAR_TOKEN_SECRET_ID",
+                    "valueFrom": "arn:aws:secretsmanager:eu-central-1:ACCOUNT_ID:secret:claude-code-agent/linear-token"
+                },
+                {
+                    "name": "ANTHROPIC_API_KEY",
+                    "valueFrom": "arn:aws:secretsmanager:eu-central-1:ACCOUNT_ID:secret:claude-code-agent/anthropic-api-key"
                 }
             ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-group": "/ecs/claude-code-agent",
-                    "awslogs-region": "eu-west-2",
+                    "awslogs-region": "eu-central-1",
                     "awslogs-stream-prefix": "agent"
                 }
             },

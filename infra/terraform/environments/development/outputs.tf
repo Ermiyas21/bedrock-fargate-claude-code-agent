@@ -3,7 +3,7 @@
 # =============================================================================
 
 output "webhook_url" {
-  description = "API Gateway webhook URL — configure this in Linear webhook settings"
+  description = "API Gateway webhook URL — configure this in Linear/Jira webhook settings"
   value       = module.lambda.webhook_url
 }
 
@@ -35,6 +35,16 @@ output "lambda_function_name" {
 output "cloudwatch_log_group" {
   description = "CloudWatch log group for ECS tasks"
   value       = module.ecs.log_group_name
+}
+
+output "lambda_log_group" {
+  description = "CloudWatch log group for Lambda dispatcher"
+  value       = module.lambda.log_group_name
+}
+
+output "cloudwatch_dashboard" {
+  description = "CloudWatch dashboard for Lambda & Bedrock observability"
+  value       = module.monitoring.dashboard_name
 }
 
 output "sns_topic_arn" {

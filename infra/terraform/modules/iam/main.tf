@@ -100,8 +100,9 @@ resource "aws_iam_role_policy" "ecs_task_permissions" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-*",
-          "arn:aws:bedrock:eu-west-2::foundation-model/eu.anthropic.claude-*"
+          "arn:aws:bedrock:${var.bedrock_region}::foundation-model/anthropic.claude-*",
+          "arn:aws:bedrock:${var.bedrock_region}::foundation-model/us.anthropic.claude-*",
+          "arn:aws:bedrock:${var.bedrock_region}::foundation-model/eu.anthropic.claude-*"
         ]
       },
       {

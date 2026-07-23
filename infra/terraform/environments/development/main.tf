@@ -21,10 +21,12 @@ locals {
 module "secrets" {
   source = "../../modules/secrets"
 
-  prefix       = local.prefix
-  tags         = local.common_tags
-  github_token = var.github_token
-  jira_token   = var.jira_token
+  prefix            = local.prefix
+  tags              = local.common_tags
+  github_token      = var.github_token
+  jira_token        = var.jira_token
+  linear_token      = var.linear_token
+  anthropic_api_key = var.anthropic_api_key
 }
 
 # -----------------------------------------------------
@@ -43,23 +45,26 @@ module "ecr" {
 module "ecs" {
   source = "../../modules/ecs"
 
-  prefix                  = local.prefix
-  aws_region              = var.aws_region
-  account_id              = local.account_id
-  tags                    = local.common_tags
-  log_retention_days      = var.log_retention_days
-  ecs_cpu                 = var.ecs_cpu
-  ecs_memory              = var.ecs_memory
-  execution_role_arn      = module.iam.ecs_execution_role_arn
-  task_role_arn           = module.iam.ecs_task_role_arn
-  ecr_repository_url      = module.ecr.repository_url
-  github_token_secret_arn = module.secrets.github_token_arn
-  jira_token_secret_arn   = module.secrets.jira_token_arn
-  claude_model_id         = var.claude_model_id
-  default_repo_url        = var.default_repo_url
-  default_base_branch     = var.default_base_branch
-  default_test_command    = var.default_test_command
-  max_turns               = var.max_turns
+  prefix                      = local.prefix
+  aws_region                  = var.aws_region
+  bedrock_region              = var.bedrock_region
+  account_id                  = local.account_id
+  tags                        = local.common_tags
+  log_retention_days          = var.log_retention_days
+  ecs_cpu                     = var.ecs_cpu
+  ecs_memory                  = var.ecs_memory
+  execution_role_arn          = module.iam.ecs_execution_role_arn
+  task_role_arn               = module.iam.ecs_task_role_arn
+  ecr_repository_url          = module.ecr.repository_url
+  github_token_secret_arn     = module.secrets.github_token_arn
+  jira_token_secret_arn       = module.secrets.jira_token_arn
+  linear_token_secret_arn     = module.secrets.linear_token_arn
+  anthropic_api_key_secret_arn = module.secrets.anthropic_api_key_arn
+  claude_model_id             = var.claude_model_id
+  default_repo_url            = var.default_repo_url
+  default_base_branch         = var.default_base_branch
+  default_test_command        = var.default_test_command
+  max_turns                   = var.max_turns
 }
 
 # -----------------------------------------------------
@@ -70,6 +75,7 @@ module "iam" {
 
   prefix             = local.prefix
   aws_region         = var.aws_region
+  bedrock_region     = var.bedrock_region
   tags               = local.common_tags
   ticket_bucket_arn  = module.ecs.ticket_bucket_arn
   log_group_arn      = module.ecs.log_group_arn
@@ -91,6 +97,7 @@ module "lambda" {
   subnet_ids                 = var.subnet_ids
   security_group_ids         = var.security_group_ids
   ticket_bucket_id           = module.ecs.ticket_bucket_id
+  log_retention_days         = var.log_retention_days
 }
 
 # -----------------------------------------------------
@@ -99,8 +106,30 @@ module "lambda" {
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  prefix           = local.prefix
-  tags             = local.common_tags
-  alarm_email      = var.alarm_email
-  ecs_cluster_name = module.ecs.cluster_name
+  prefix                = local.prefix
+  tags                  = local.common_tags
+  aws_region            = var.aws_region
+  alarm_email           = var.alarm_email
+  ecs_cluster_name      = module.ecs.cluster_name
+  ecs_log_group_name    = module.ecs.log_group_name
+  lambda_function_name  = module.lambda.function_name
+  lambda_log_group_name = module.lambda.log_group_name
+}
+
+# -----------------------------------------------------
+# Budget Kill Switch
+# -----------------------------------------------------
+module "budget_kill_switch" {
+  source = "../../modules/budget-kill-switch"
+
+  prefix              = local.prefix
+  tags                = local.common_tags
+  aws_region          = var.aws_region
+  bedrock_region      = var.bedrock_region
+  ecs_cluster_name    = module.ecs.cluster_name
+  ecs_task_role_name  = module.iam.ecs_task_role_name
+  sns_topic_arn       = module.monitoring.sns_topic_arn
+  daily_token_limit   = var.daily_token_limit
+  daily_cost_limit    = var.daily_cost_limit
+  lambda_source_dir   = "${path.module}/../../../../scripts/kill-switch"
 }

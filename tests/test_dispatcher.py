@@ -18,7 +18,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _set_env(monkeypatch):
     """Set required environment variables before importing the handler."""
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-central-1")
     monkeypatch.setenv("ECS_CLUSTER", "test-cluster")
     monkeypatch.setenv("ECS_TASK_DEFINITION", "test-task-def")
     monkeypatch.setenv("SUBNETS", "subnet-aaa,subnet-bbb")
@@ -68,6 +68,29 @@ def _linear_payload(
     }
 
 
+def _jira_payload(
+    key="PROJ-99",
+    summary="Add /health endpoint",
+    description="Return 200 OK at /health",
+    status_name="Ready for Dev",
+    webhook_event="jira:issue_updated",
+) -> dict:
+    return {
+        "webhookEvent": webhook_event,
+        "issue": {
+            "key": key,
+            "self": "https://jira.example.com/rest/api/2/issue/12345",
+            "fields": {
+                "summary": summary,
+                "description": description,
+                "status": {"name": status_name},
+                "labels": ["backend"],
+                "priority": {"id": "2", "name": "High"},
+            },
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # _parse_body
 # ---------------------------------------------------------------------------
@@ -98,27 +121,43 @@ class TestParseBody:
 class TestShouldProcess:
     def test_qualifies_ready_for_dev(self, _reload_handler):
         body = _linear_payload(state_name="Ready for Dev")
-        assert _reload_handler._should_process(body) is True
+        assert _reload_handler._should_process(body, "linear") is True
 
     def test_qualifies_ai_ready(self, _reload_handler):
         body = _linear_payload(state_name="AI Ready")
-        assert _reload_handler._should_process(body) is True
+        assert _reload_handler._should_process(body, "linear") is True
 
     def test_qualifies_case_insensitive(self, _reload_handler):
         body = _linear_payload(state_name="READY FOR DEV")
-        assert _reload_handler._should_process(body) is True
+        assert _reload_handler._should_process(body, "linear") is True
 
     def test_skips_wrong_state(self, _reload_handler):
         body = _linear_payload(state_name="In Progress")
-        assert _reload_handler._should_process(body) is False
+        assert _reload_handler._should_process(body, "linear") is False
 
     def test_skips_wrong_action(self, _reload_handler):
         body = _linear_payload(action="create")
-        assert _reload_handler._should_process(body) is False
+        assert _reload_handler._should_process(body, "linear") is False
 
     def test_skips_wrong_type(self, _reload_handler):
         body = _linear_payload(issue_type="Comment")
-        assert _reload_handler._should_process(body) is False
+        assert _reload_handler._should_process(body, "linear") is False
+
+    def test_jira_qualifies_ready_for_dev(self, _reload_handler):
+        body = _jira_payload(status_name="Ready for Dev")
+        assert _reload_handler._should_process(body, "jira") is True
+
+    def test_jira_qualifies_selected_for_development(self, _reload_handler):
+        body = _jira_payload(status_name="Selected for Development")
+        assert _reload_handler._should_process(body, "jira") is True
+
+    def test_jira_skips_wrong_status(self, _reload_handler):
+        body = _jira_payload(status_name="In Progress")
+        assert _reload_handler._should_process(body, "jira") is False
+
+    def test_jira_skips_wrong_event(self, _reload_handler):
+        body = _jira_payload(webhook_event="jira:issue_deleted")
+        assert _reload_handler._should_process(body, "jira") is False
 
 
 # ---------------------------------------------------------------------------
@@ -133,10 +172,11 @@ class TestExtractTicket:
             title="My Title",
             description="Do the thing",
         )
-        ticket = _reload_handler._extract_ticket(body)
+        ticket = _reload_handler._extract_ticket(body, "linear")
         assert ticket["identifier"] == "PROJ-99"
         assert ticket["title"] == "My Title"
         assert ticket["description"] == "Do the thing"
+        assert ticket["source"] == "linear"
         assert "created_at" in ticket
 
     def test_handles_missing_optional_fields(self, _reload_handler):
@@ -145,10 +185,23 @@ class TestExtractTicket:
                 "identifier": "X-1",
             }
         }
-        ticket = _reload_handler._extract_ticket(body)
+        ticket = _reload_handler._extract_ticket(body, "linear")
         assert ticket["identifier"] == "X-1"
         assert ticket["title"] == ""
         assert ticket["labels"] == []
+
+    def test_jira_extracts_fields(self, _reload_handler):
+        body = _jira_payload(
+            key="PROJ-42",
+            summary="Jira Title",
+            description="Jira description",
+        )
+        ticket = _reload_handler._extract_ticket(body, "jira")
+        assert ticket["identifier"] == "PROJ-42"
+        assert ticket["title"] == "Jira Title"
+        assert ticket["description"] == "Jira description"
+        assert ticket["source"] == "jira"
+        assert "jira.example.com" in ticket["url"]
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +223,7 @@ class TestResponse:
 
 
 class TestValidateWebhook:
-    def test_valid_signature(self, _reload_handler):
+    def test_valid_linear_signature(self, _reload_handler):
         import hmac
         import hashlib
 
@@ -179,11 +232,26 @@ class TestValidateWebhook:
         sig = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
 
         event = {"headers": {"x-linear-signature": sig}, "body": body}
-        assert _reload_handler._validate_webhook(event, secret) is True
+        assert _reload_handler._validate_webhook(event, secret, "linear") is True
 
-    def test_invalid_signature(self, _reload_handler):
+    def test_invalid_linear_signature(self, _reload_handler):
         event = {"headers": {"x-linear-signature": "bad"}, "body": "{}"}
-        assert _reload_handler._validate_webhook(event, "secret") is False
+        assert _reload_handler._validate_webhook(event, "secret", "linear") is False
+
+    def test_valid_jira_signature(self, _reload_handler):
+        import hmac
+        import hashlib
+
+        secret = "test-secret"
+        body = '{"webhookEvent":"jira:issue_updated"}'
+        sig = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+
+        event = {"headers": {"x-hub-signature": f"sha256={sig}"}, "body": body}
+        assert _reload_handler._validate_webhook(event, secret, "jira") is True
+
+    def test_invalid_jira_signature(self, _reload_handler):
+        event = {"headers": {"x-hub-signature": "sha256=bad"}, "body": "{}"}
+        assert _reload_handler._validate_webhook(event, "secret", "jira") is False
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +264,7 @@ class TestHandler:
     @patch("scripts.dispatcher.handler.s3_client")
     def test_successful_task_start(self, mock_s3, mock_ecs, _reload_handler):
         mock_ecs.run_task.return_value = {
-            "tasks": [{"taskArn": "arn:aws:ecs:eu-west-2:123:task/cluster/abc"}],
+            "tasks": [{"taskArn": "arn:aws:ecs:eu-central-1:123:task/cluster/abc"}],
             "failures": [],
         }
 
@@ -261,3 +329,48 @@ class TestHandler:
         event = _apigw_event(bad_payload)
         resp = _reload_handler.handler(event, None)
         assert resp["statusCode"] == 400
+
+    @patch("scripts.dispatcher.handler.ecs_client")
+    @patch("scripts.dispatcher.handler.s3_client")
+    def test_jira_successful_task_start(self, mock_s3, mock_ecs, _reload_handler):
+        mock_ecs.run_task.return_value = {
+            "tasks": [{"taskArn": "arn:aws:ecs:eu-central-1:123:task/cluster/def"}],
+            "failures": [],
+        }
+
+        event = _apigw_event(_jira_payload())
+        resp = _reload_handler.handler(event, None)
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["message"] == "Task started"
+        assert body["source"] == "jira"
+        mock_s3.put_object.assert_called_once()
+        mock_ecs.run_task.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _detect_source
+# ---------------------------------------------------------------------------
+
+
+class TestDetectSource:
+    def test_detects_linear_by_header(self, _reload_handler):
+        event = {"headers": {"x-linear-signature": "abc"}}
+        body = {}
+        assert _reload_handler._detect_source(body, event) == "linear"
+
+    def test_detects_jira_by_webhook_event(self, _reload_handler):
+        event = {"headers": {}}
+        body = {"webhookEvent": "jira:issue_updated", "issue": {}}
+        assert _reload_handler._detect_source(body, event) == "jira"
+
+    def test_detects_linear_by_payload_shape(self, _reload_handler):
+        event = {"headers": {}}
+        body = {"action": "update", "type": "Issue", "data": {}}
+        assert _reload_handler._detect_source(body, event) == "linear"
+
+    def test_unknown_source(self, _reload_handler):
+        event = {"headers": {}}
+        body = {"random": "data"}
+        assert _reload_handler._detect_source(body, event) == "unknown"
