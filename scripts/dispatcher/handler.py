@@ -95,8 +95,8 @@ def handler(event, context):
     except ClientError as e:
         logger.error("AWS error: %s", e)
         return _response(500, {"error": f"AWS error: {e.response['Error']['Message']}"})
-    except Exception as e:
-        logger.exception("Unexpected error: %s", e)
+    except Exception:
+        logger.exception("Unexpected error")
         return _response(500, {"error": "Internal server error"})
 
 

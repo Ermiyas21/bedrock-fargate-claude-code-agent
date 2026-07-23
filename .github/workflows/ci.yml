@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests
         env:
-          AWS_DEFAULT_REGION: eu-west-2
+          AWS_DEFAULT_REGION: eu-central-1
         run: pytest tests/ -v --tb=short --junitxml=test-results.xml
 
       - name: Upload test results

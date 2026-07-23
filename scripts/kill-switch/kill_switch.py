@@ -51,7 +51,7 @@ def handler(event, context):
         return {"action": "ok", "token_usage": token_usage}
 
     except Exception as e:
-        logger.exception("Kill switch error: %s", e)
+        logger.exception("Kill switch error")
         _notify(f"Kill switch error: {e}")
         raise
 

@@ -1,8 +1,6 @@
 name: Deploy — Build & Push to AWS
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       deploy_docker:
@@ -29,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: eu-west-2
+  AWS_REGION: eu-central-1
   ECR_REPOSITORY: claude-code-agent
 
 jobs:
