@@ -75,7 +75,9 @@ def handler(event, context):
         # Start ECS task
         task_arn = _start_ecs_task(task_id, ticket_location, ticket_data)
 
-        logger.info("Started ECS task %s for ticket %s (source: %s)", task_arn, task_id, source)
+        logger.info(
+            "Started ECS task %s for ticket %s (source: %s)", task_arn, task_id, source
+        )
 
         return _response(
             200,
@@ -193,7 +195,12 @@ def _should_process_jira(body):
     status = fields.get("status", {})
     status_name = status.get("name", "")
 
-    return status_name.lower() in ("ready for dev", "ready for development", "ai ready", "selected for development")
+    return status_name.lower() in (
+        "ready for dev",
+        "ready for development",
+        "ai ready",
+        "selected for development",
+    )
 
 
 def _extract_ticket(body, source="linear"):
@@ -229,7 +236,9 @@ def _extract_jira_ticket(body):
         "description": fields.get("description", ""),
         "labels": fields.get("labels", []),
         "priority": fields.get("priority", {}).get("id", 0),
-        "url": f"{issue.get('self', '').split('/rest/')[0]}/browse/{issue['key']}" if issue.get("self") else "",
+        "url": f"{issue.get('self', '').split('/rest/')[0]}/browse/{issue['key']}"
+        if issue.get("self")
+        else "",
         "created_at": datetime.utcnow().isoformat(),
     }
 

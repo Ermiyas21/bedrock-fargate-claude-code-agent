@@ -37,10 +37,14 @@ def handler(event, context):
         logger.info("Daily token usage: %d (limit: %d)", token_usage, DAILY_TOKEN_LIMIT)
 
         if token_usage > DAILY_TOKEN_LIMIT:
-            logger.warning("TOKEN BUDGET EXCEEDED: %d > %d", token_usage, DAILY_TOKEN_LIMIT)
+            logger.warning(
+                "TOKEN BUDGET EXCEEDED: %d > %d", token_usage, DAILY_TOKEN_LIMIT
+            )
             _kill_all_tasks()
             _revoke_bedrock_access()
-            _notify(f"Bedrock token budget exceeded: {token_usage:,} tokens (limit: {DAILY_TOKEN_LIMIT:,})")
+            _notify(
+                f"Bedrock token budget exceeded: {token_usage:,} tokens (limit: {DAILY_TOKEN_LIMIT:,})"
+            )
             return {"action": "killed", "reason": "token_limit", "usage": token_usage}
 
         logger.info("Budget OK — usage within limits")
@@ -92,20 +96,22 @@ def _revoke_bedrock_access():
     """Attach a deny policy to the ECS task role to block Bedrock calls."""
     logger.info("Revoking Bedrock access for role: %s", ECS_TASK_ROLE_NAME)
 
-    deny_policy = json.dumps({
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "BudgetKillSwitchDeny",
-                "Effect": "Deny",
-                "Action": [
-                    "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream",
-                ],
-                "Resource": "*",
-            }
-        ],
-    })
+    deny_policy = json.dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "BudgetKillSwitchDeny",
+                    "Effect": "Deny",
+                    "Action": [
+                        "bedrock:InvokeModel",
+                        "bedrock:InvokeModelWithResponseStream",
+                    ],
+                    "Resource": "*",
+                }
+            ],
+        }
+    )
 
     iam_client.put_role_policy(
         RoleName=ECS_TASK_ROLE_NAME,
