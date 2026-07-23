@@ -153,9 +153,9 @@ resource "aws_iam_role_policy" "kill_switch_permissions" {
         Resource = "*"
       },
       {
-        Sid    = "SNSNotify"
-        Effect = "Allow"
-        Action = "sns:Publish"
+        Sid      = "SNSNotify"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
         Resource = var.sns_topic_arn
       }
     ]

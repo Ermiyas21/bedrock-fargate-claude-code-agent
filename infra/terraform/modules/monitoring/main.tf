@@ -82,8 +82,8 @@ resource "aws_cloudtrail" "bedrock_audit" {
     }
 
     field_selector {
-      field       = "resources.type"
-      equals      = ["AWS::Bedrock::Model"]
+      field  = "resources.type"
+      equals = ["AWS::Bedrock::Model"]
     }
   }
 
@@ -300,15 +300,15 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "Lambda Dispatcher — Invocations & Errors"
+          title = "Lambda Dispatcher — Invocations & Errors"
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", var.lambda_function_name, { stat = "Sum", period = 300 }],
             ["AWS/Lambda", "Errors", "FunctionName", var.lambda_function_name, { stat = "Sum", period = 300, color = "#d62728" }],
             ["AWS/Lambda", "Throttles", "FunctionName", var.lambda_function_name, { stat = "Sum", period = 300, color = "#ff7f0e" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 300
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 300
         }
       },
       {
@@ -318,14 +318,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "Lambda Dispatcher — Duration"
+          title = "Lambda Dispatcher — Duration"
           metrics = [
             ["AWS/Lambda", "Duration", "FunctionName", var.lambda_function_name, { stat = "Average", period = 300 }],
             ["AWS/Lambda", "Duration", "FunctionName", var.lambda_function_name, { stat = "Maximum", period = 300, color = "#d62728" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 300
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 300
         }
       },
       {
@@ -335,16 +335,16 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "Bedrock — Invocations & Errors"
+          title = "Bedrock — Invocations & Errors"
           metrics = [
             ["AWS/Bedrock", "Invocations", { stat = "Sum", period = 300 }],
             ["AWS/Bedrock", "InvocationClientErrors", { stat = "Sum", period = 300, color = "#d62728" }],
             ["AWS/Bedrock", "InvocationServerErrors", { stat = "Sum", period = 300, color = "#9467bd" }],
             ["AWS/Bedrock", "InvocationThrottles", { stat = "Sum", period = 300, color = "#ff7f0e" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 300
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 300
         }
       },
       {
@@ -354,14 +354,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "Bedrock — Token Usage"
+          title = "Bedrock — Token Usage"
           metrics = [
             ["AWS/Bedrock", "InputTokenCount", { stat = "Sum", period = 3600 }],
             ["AWS/Bedrock", "OutputTokenCount", { stat = "Sum", period = 3600, color = "#2ca02c" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 3600
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 3600
         }
       },
       {
@@ -371,14 +371,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "Bedrock — Latency"
+          title = "Bedrock — Latency"
           metrics = [
             ["AWS/Bedrock", "InvocationLatency", { stat = "Average", period = 300 }],
             ["AWS/Bedrock", "InvocationLatency", { stat = "p99", period = 300, color = "#d62728" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 300
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 300
         }
       },
       {
@@ -388,14 +388,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
-          title   = "ECS — Task Status"
+          title = "ECS — Task Status"
           metrics = [
             ["ECS/ContainerInsights", "RunningTaskCount", "ClusterName", var.ecs_cluster_name, { stat = "Maximum", period = 300 }],
             ["ECS/ContainerInsights", "TaskFailureCount", "ClusterName", var.ecs_cluster_name, { stat = "Sum", period = 300, color = "#d62728" }],
           ]
-          view    = "timeSeries"
-          region  = var.aws_region
-          period  = 300
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 300
         }
       },
       {

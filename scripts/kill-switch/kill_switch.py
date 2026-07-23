@@ -55,7 +55,7 @@ def handler(event, context):
 def _get_daily_token_usage():
     """Get today's total Bedrock token usage from CloudWatch metrics."""
     now = datetime.utcnow()
-    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = now - timedelta(hours=24)
 
     response = cloudwatch_client.get_metric_statistics(
         Namespace="AWS/Bedrock",
